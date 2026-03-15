@@ -1,0 +1,76 @@
+server:
+  port: 9999
+
+spring:
+  application:
+    name: pc-store-backend
+
+  datasource:
+    driver-class-name: org.postgresql.Driver
+    url: jdbc:postgresql://localhost:5432/pc_store
+    username: postgres
+    password: 12345678
+
+  jpa:
+    database-platform: org.hibernate.dialect.PostgreSQLDialect
+    generate-ddl: true
+    hibernate:
+      ddl-auto: update
+    properties:
+      hibernate:
+        jdbc:
+          lob:
+            non_contextual_creation: true
+    open-in-view: false
+
+  mail:
+    host: smtp.gmail.com
+    port: 587
+    username: nguyentunglam230203@gmail.com
+    password: rwjjrqwtquzaamgp
+    properties:
+      mail:
+        smtp:
+          auth: true
+          starttls:
+            enabled: true
+
+keycloak:
+  realm: master
+  auth-server-url: http://localhost:8080
+  resource: pc-store
+  ssl-required: none
+  principal-attribute: preferred_username
+  use-resource-role-mappings: true
+  bearer-only: true
+  cors: true
+  credentials:
+    secret: oXfAHc1jScNAkUOlohYJmChWNqzVQHvd
+  public-client: true
+
+rest-template:
+  timeout: 30
+
+redis:
+  port: 6379
+  host: 127.0.0.1
+  database: 0
+  timeout: 3600
+
+imgur:
+  client-id: 29f585fc0df678c
+  upload-url: https://api.imgur.com/3/image
+
+vnpay:
+  version: 2.1.0
+  callback-url: http://localhost:4200/vnpay/confirm-payment
+  tmn-code: 71PRZR3X
+  hash-secret: 8N53T5OWTTTE2LA3JJQKFTFDKX2GWZ7W
+  command: pay
+  domain: https://sandbox.vnpayment.vn
+
+minio:
+  url: http://localhost:9000
+  access-key: minioadmin
+  secret-key: minioadmin123
+

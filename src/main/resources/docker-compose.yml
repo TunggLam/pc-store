@@ -1,0 +1,48 @@
+services:
+  keycloak:
+    image: quay.io/keycloak/keycloak:24.0.0
+    container_name: keycloak-pc-store
+    command: start-dev
+    environment:
+      KEYCLOAK_ADMIN: admin
+      KEYCLOAK_ADMIN_PASSWORD: admin
+    networks:
+      - pc-store-network
+    volumes:
+      - ./keycloak-data:/opt/keycloak/data
+    ports:
+      - "8080:8080"
+
+  redis:
+    image: redis:latest
+    container_name: redis-pc-store
+    networks:
+      - pc-store-network
+    volumes:
+      - redis_data:/data
+    ports:
+      - "6379:6379"
+
+  minio:
+    image: minio/minio:latest
+    container_name: minio-pc-store
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    environment:
+      - MINIO_ROOT_USER=minioadmin
+      - MINIO_ROOT_PASSWORD=minioadmin123
+    command: server /data --console-address ":9001"
+    volumes:
+      - minio_data:/data
+    networks:
+      - pc-store-network
+    restart: unless-stopped
+
+networks:
+  pc-store-network:
+
+volumes:
+  redis_data:
+  minio_data:
+  keycloak-data:

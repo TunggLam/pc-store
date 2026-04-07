@@ -114,6 +114,13 @@ public class ProductController {
             @ApiResponse(responseCode = "403", description = "Không có quyền ADMIN", content = @Content)
     })
     @Secured(role = RoleEnum.ADMIN)
+    @PutMapping(value = "/product/{id}", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public ResponseEntity<ProductResponse> updateProduct(@PathVariable String id,
+                                                         @Valid @ModelAttribute CreateProductRequest request) {
+        return ResponseEntity.ok(productService.updateProduct(id, request));
+    }
+
+    @Secured(role = RoleEnum.ADMIN)
     @PutMapping("/product/quantity")
     public ResponseEntity<ProductResponse> updateQuantityProduct(@RequestBody CreateProductRequest request) {
         return ResponseEntity.ok(productService.createProduct(request));

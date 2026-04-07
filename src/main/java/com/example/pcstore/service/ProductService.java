@@ -8,6 +8,8 @@ public interface ProductService {
 
     ProductsResponse getProducts(int page, int size, String categoryId, String name);
 
+    ProductsResponse searchProducts(int page, int size, String keyword, String categoryId);
+
     ProductResponse getProduct(String id);
 
     ProductResponse createProduct(CreateProductRequest request);

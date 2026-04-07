@@ -6,7 +6,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
-
+import java.math.BigDecimal;
 import java.util.List;
 import java.util.Optional;
 
@@ -21,5 +21,26 @@ public interface CartItemRepository extends JpaRepository<CartItem, String> {
     List<CartItem> getCartItems(@Param("username") String username, @Param("cartId") String cartId);
 
     Optional<CartItem> findByUsernameAndProductIdAndCartId(String username, String productId, String cartId);
+
+    @Query(value = """
+            SELECT ci.product_id,
+                   SUM(ci.quantity)     AS total_sold,
+                   SUM(ci.total_amount) AS total_revenue
+            FROM cart_item ci
+            JOIN cart c ON c.id = ci.cart_id
+            WHERE c.status = 'COMPLETED'
+            GROUP BY ci.product_id
+            ORDER BY total_sold DESC
+            LIMIT 5
+            """, nativeQuery = true)
+    List<Object[]> findTopSellingProducts();
+
+    @Query(value = """
+            SELECT COALESCE(SUM(ci.total_amount), 0)
+            FROM cart_item ci
+            JOIN cart c ON c.id = ci.cart_id
+            WHERE c.status = 'COMPLETED'
+            """, nativeQuery = true)
+    BigDecimal sumRevenueFromCompletedOrders();
 }
 

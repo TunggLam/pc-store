@@ -3,6 +3,9 @@ package com.example.pcstore.utils;
 import com.example.pcstore.logging.LoggingFactory;
 import lombok.RequiredArgsConstructor;
 import org.slf4j.Logger;
+import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.context.annotation.Primary;
+import org.springframework.security.core.parameters.P;
 import org.springframework.stereotype.Component;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -24,7 +27,8 @@ public class FileUtils {
 
     private static final String JAVA_IO_TMPDIR = "java.io.tmpdir";
 
-    private final Executor executor;
+//    @Qualifier("threadPoolTaskExecutor")
+//    private final Executor executor;
 
     public static File convertMultipartFileToFile(MultipartFile multipartFile) {
         if (Objects.isNull(multipartFile)) {
@@ -55,7 +59,7 @@ public class FileUtils {
                 } catch (Exception e) {
                     LOGGER.error("[FILE UTILS] Xóa file không thành công. Exception: {}", e.getMessage());
                 }
-            }, executor);
+            });
         }
     }
 }

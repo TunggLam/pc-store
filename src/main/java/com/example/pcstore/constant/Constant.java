@@ -50,5 +50,10 @@ public class Constant {
 
     public static final String KEY_GENERATOR = "ecommerce-api-key";
 
+    public static final String ORDER_NOT_FOUND = "Không tìm thấy thông tin đơn hàng";
+
+    public static final String ORDER_STATUS_INVALID = "Trạng thái đơn hàng không hợp lệ";
+
+    public static final String ORDER_STATUS_CANNOT_UPDATE = "Không thể cập nhật trạng thái đơn hàng đã hoàn thành hoặc đã hủy";
 
 }

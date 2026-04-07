@@ -13,8 +13,10 @@ import com.example.pcstore.model.response.CallbackResponse;
 import com.example.pcstore.model.response.VNPayIPNResponse;
 import com.example.pcstore.model.response.VNPayInitOrderResponse;
 import com.example.pcstore.proxy.VNPayProxy;
+import com.example.pcstore.entity.PaymentHistory;
 import com.example.pcstore.repositories.CartItemRepository;
 import com.example.pcstore.repositories.CartRepository;
+import com.example.pcstore.repositories.PaymentHistoryRepository;
 import com.example.pcstore.repositories.PaymentVNPayRepository;
 import com.example.pcstore.service.PaymentService;
 import com.example.pcstore.utils.*;
@@ -49,6 +51,7 @@ public class PaymentServiceImpl implements PaymentService {
 
     private final CartRepository cartRepository;
     private final PaymentVNPayRepository paymentVNPayRepository;
+    private final PaymentHistoryRepository paymentHistoryRepository;
     private final ObjectMapper objectMapper;
     private final VNPayProxy vnPayProxy;
     private final CartItemRepository cartItemRepository;
@@ -165,12 +168,16 @@ public class PaymentServiceImpl implements PaymentService {
         /*-- Lưu thông tin giao dịch vnpay --*/
         PaymentVNPay paymentVNPay = buildPaymentVNPay(totalPrice, expireDate, username, invoiceNo, orderInfo, createDate, ipAddress);
 
-        /*-- Ở đây do chưa tìm được lỗi vì sao khi lưu thông tin vào databse thì mất thông tin header, nên sẽ get thông tin ra 1 lượt rồi mới lưu --*/
-//        paymentHistoryRepository.save(paymentHistory);
-//        LOGGER.info("[PAYMENT][VNPAY][INIT][{}] Lưu thông tin lịch sử thanh toán: {}", username, paymentHistory);
-
         paymentVNPayRepository.save(paymentVNPay);
         LOGGER.info("[PAYMENT][VNPAY][INIT][{}] Lưu thông tin thanh toán VNPay: {}", username, paymentVNPay);
+
+        /*-- Lưu liên kết đơn hàng ↔ thanh toán để admin có thể tra cứu thông tin payment --*/
+        PaymentHistory paymentHistory = new PaymentHistory();
+        paymentHistory.setUsername(username);
+        paymentHistory.setOrderHistoryId(cart.getId());
+        paymentHistory.setPaymentId(paymentVNPay.getId());
+        paymentHistoryRepository.save(paymentHistory);
+        LOGGER.info("[PAYMENT][VNPAY][INIT][{}] Lưu liên kết đơn hàng: cartId={}, paymentId={}", username, cart.getId(), paymentVNPay.getId());
 
         return VNPayInitOrderResponse.builder().target(target).txnRef(invoiceNo).build();
     }
@@ -261,6 +268,13 @@ public class PaymentServiceImpl implements PaymentService {
 //        updatePaymentHistory(paymentHistory, response.getStatus());
 
         updatePaymentVNPay(paymentVNPay, response);
+
+        /*-- Nếu thanh toán thất bại → hủy đơn hàng tương ứng --*/
+        if (isPaymentFailed(response.getResponseCode())) {
+            LOGGER.info("[PAYMENT][VNPAY][CALLBACK] Giao dịch thất bại (responseCode={}), tiến hành hủy đơn hàng", response.getResponseCode());
+            cancelCartByPaymentId(paymentVNPay.getId());
+        }
+
         return response;
     }
 
@@ -302,6 +316,25 @@ public class PaymentServiceImpl implements PaymentService {
         paymentVNPayRepository.save(paymentVNPay);
     }
 
+    /**
+     * Kiểm tra xem responseCode từ callback có phải là trạng thái thanh toán thất bại không.
+     * Không bao gồm ORDER_NOT_BEEN_PROCESSED (VNPay chưa xử lý, IPN chưa đến).
+     */
+    private boolean isPaymentFailed(String responseCode) {
+        return "FAILED".equals(responseCode) || "FAIL".equals(responseCode) || "NOT_FOUND".equals(responseCode);
+    }
+
+    /**
+     * Hủy đơn hàng gắn với paymentVNPayId bằng cách tra cứu qua PaymentHistory.
+     * Chỉ hủy nếu đơn hàng vẫn đang ở trạng thái PENDING.
+     */
+    private void cancelCartByPaymentId(String paymentVNPayId) {
+        paymentHistoryRepository.findByPaymentId(paymentVNPayId).ifPresent(history -> {
+            cartRepository.updateStatusById(history.getOrderHistoryId(), "CANCELLED");
+            LOGGER.info("[PAYMENT] Đã hủy đơn hàng {} do thanh toán thất bại", history.getOrderHistoryId());
+        });
+    }
+
     private VNPayQueryOrderRequest buildRequestQueryOrder(PaymentVNPay paymentVNPay, String requestId, String orderInfo, String ipAddress, String createDate, String secureHash) {
         var queryOrderRequest = new VNPayQueryOrderRequest();
         queryOrderRequest.setRequestId(requestId);
@@ -329,8 +362,8 @@ public class PaymentServiceImpl implements PaymentService {
     private PaymentVNPay buildPaymentVNPay(int amount, String expiredDate, String username, String invoiceNo, String orderInfo, String createDate, String ipAddress) {
         var paymentVNPay = new PaymentVNPay();
         paymentVNPay.setUsername(username);
-        paymentVNPay.setTransactionExpiredDate(createDate);
-        paymentVNPay.setTransactionCreateDate(expiredDate);
+        paymentVNPay.setTransactionCreateDate(createDate);
+        paymentVNPay.setTransactionExpiredDate(expiredDate);
         paymentVNPay.setStatus("INIT SUCCESS");
         paymentVNPay.setCardType(VN_BANK);
         paymentVNPay.setInvoiceNo(invoiceNo);
@@ -441,15 +474,13 @@ public class PaymentServiceImpl implements PaymentService {
 //                    messageBot = String.format(messageBot, paymentVNPay.getUsername(), "Đã thanh toán thành công", params.getTxnRef());
 //                    telegramProxy.sendMessage(messageBot);
                 } else if ("24".equals(params.getResponseCode())) {
-                    paymentVNPay.setTransactionStatus(params.getResponseCode());
+                    paymentVNPay.setTransactionStatus(params.getTransactionStatus());
                     paymentVNPay.setStatus("CANCEL");
-                    paymentVNPay.setTransactionStatus(params.getTransactionStatus());
-                    cartRepository.updateStatus(paymentVNPay.getUsername(), "PAYMENT CANCEL");
+                    cancelCartByPaymentId(paymentVNPay.getId());
                 } else {
-                    paymentVNPay.setTransactionStatus(params.getResponseCode());
-                    paymentVNPay.setStatus("FAIL");
                     paymentVNPay.setTransactionStatus(params.getTransactionStatus());
-                    cartRepository.updateStatus(paymentVNPay.getUsername(), "PAYMENT FAIL");
+                    paymentVNPay.setStatus("FAIL");
+                    cancelCartByPaymentId(paymentVNPay.getId());
                 }
                 paymentVNPayRepository.save(paymentVNPay);
             } else {

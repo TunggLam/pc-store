@@ -19,6 +19,8 @@ public class ProductSpecification {
 
     private static final String NAME = "name";
 
+    private static final String DESCRIPTION = "description";
+
     private final ProductRepository productRepository;
 
     private static Specification<Product> hasCategoryId(String categoryId) {
@@ -39,8 +41,26 @@ public class ProductSpecification {
         };
     }
 
+    private static Specification<Product> hasKeyword(String keyword) {
+        return (Root<Product> root, CriteriaQuery<?> query, CriteriaBuilder criteriaBuilder) -> {
+            if (StringUtils.isNullOrEmpty(keyword)) {
+                return null;
+            }
+            String pattern = "%" + keyword.toLowerCase() + "%";
+            return criteriaBuilder.or(
+                    criteriaBuilder.like(criteriaBuilder.lower(root.get(NAME)), pattern),
+                    criteriaBuilder.like(criteriaBuilder.lower(root.get(DESCRIPTION)), pattern)
+            );
+        };
+    }
+
     public List<Product> findAllByCategoryIdAndName(String categoryId, String name){
         Specification<Product> conditions = Specification.where(hasCategoryId(categoryId).and(hasName(name)));
+        return productRepository.findAll(conditions);
+    }
+
+    public List<Product> searchByKeywordAndCategoryId(String keyword, String categoryId) {
+        Specification<Product> conditions = Specification.where(hasKeyword(keyword).and(hasCategoryId(categoryId)));
         return productRepository.findAll(conditions);
     }
 }

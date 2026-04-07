@@ -32,4 +32,8 @@ public interface UserProfileRepository extends JpaRepository<UserProfile, String
     Boolean existsByPhoneNumber(String phoneNumber);
 
     Boolean existsByEmail(String email);
+
+    Boolean existsByEmailAndUsernameNot(String email, String username);
+
+    Boolean existsByPhoneNumberAndUsernameNot(String phoneNumber, String username);
 }

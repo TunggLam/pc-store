@@ -18,6 +18,7 @@ import com.example.pcstore.repositories.ProductRepository;
 import com.example.pcstore.repositories.spectification.ProductSpecification;
 import com.example.pcstore.service.ProductService;
 import com.example.pcstore.utils.JWTUtils;
+import com.example.pcstore.utils.StringUtils;
 import io.minio.MinioClient;
 import io.minio.PutObjectArgs;
 import lombok.RequiredArgsConstructor;
@@ -48,6 +49,26 @@ public class ProductServiceImpl implements ProductService {
     @Override
     public ProductsResponse getProducts(int page, int size, String categoryId, String name) {
         List<Product> products = productSpecification.findAllByCategoryIdAndName(categoryId, name);
+        List<ProductResponse> productResponses = new ArrayList<>();
+        for (Product product : products.stream().skip((long) page * size).limit(size).toList()) {
+            ProductResponse productResponse = productMapper.mapToProductResponse(product);
+            Category category = categoryRepository.findById(product.getCategoryId()).orElse(null);
+            CategoryResponse categoryResponse = categoriesMapper.mapToCategoryResponse(category);
+            productResponse.setCategory(categoryResponse);
+            productResponses.add(productResponse);
+        }
+        return ProductsResponse.builder().totalElements(products.size()).products(productResponses).build();
+    }
+
+    @Override
+    public ProductsResponse searchProducts(int page, int size, String keyword, String categoryId) {
+        LOGGER.info("[PRODUCT][SEARCH] keyword={}, categoryId={}, page={}, size={}", keyword, categoryId, page, size);
+
+        if (StringUtils.isNullOrEmpty(keyword) || keyword.isBlank()) {
+            return ProductsResponse.builder().totalElements(0).products(List.of()).build();
+        }
+
+        List<Product> products = productSpecification.searchByKeywordAndCategoryId(keyword, categoryId);
         List<ProductResponse> productResponses = new ArrayList<>();
         for (Product product : products.stream().skip((long) page * size).limit(size).toList()) {
             ProductResponse productResponse = productMapper.mapToProductResponse(product);

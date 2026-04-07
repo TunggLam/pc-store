@@ -33,4 +33,6 @@ public interface ProductRepository extends JpaRepository<Product, String>, JpaSp
     @Caching(evict = {@CacheEvict(value = "products", allEntries = true, beforeInvocation = true)})
     Product save(@NonNull Product product);
 
+    @Query(value = "SELECT * FROM product WHERE quantity <= 5 AND quantity > 0 ORDER BY quantity ASC", nativeQuery = true)
+    List<Product> findLowStockProducts();
 }

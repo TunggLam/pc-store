@@ -6,6 +6,18 @@ services:
     environment:
       KEYCLOAK_ADMIN: admin
       KEYCLOAK_ADMIN_PASSWORD: admin
+
+      KC_DB: postgres
+      KC_DB_URL: jdbc:postgresql://postgres:5432/keycloak_db
+      KC_DB_USERNAME: postgres
+      KC_DB_PASSWORD: 123456
+
+      KC_HTTP_ENABLED: true
+      KC_HOSTNAME_STRICT: false
+      KC_HOSTNAME_STRICT_HTTPS: false
+
+    depends_on:
+      - postgres
     networks:
       - pc-store-network
     volumes:
@@ -13,15 +25,33 @@ services:
     ports:
       - "8080:8080"
 
+
+#  redis:
+#    image: redis:latest
+#    container_name: redis-pc-store
+#    networks:
+#      - pc-store-network
+#    volumes:
+#      - redis_data:/data
+#    ports:
+#      - "6379:6379"
+
   redis:
-    image: redis:latest
-    container_name: redis-pc-store
-    networks:
-      - pc-store-network
-    volumes:
-      - redis_data:/data
+    image: redis:7.4-alpine
+    container_name: redis
     ports:
       - "6379:6379"
+    volumes:
+      - redis_data:/data
+    command: [
+      "redis-server",
+      "--save", "60", "1",
+      "--loglevel", "warning",
+      "--requirepass", "AdminRedis@2025"
+    ]
+    restart: unless-stopped
+    networks:
+      - pc-store-network
 
   minio:
     image: minio/minio:latest
@@ -39,6 +69,40 @@ services:
       - pc-store-network
     restart: unless-stopped
 
+  postgres:
+    image: postgres:15
+    container_name: postgres-pc-store
+    environment:
+      POSTGRES_DB: keycloak_db
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: 123456
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./init-db.sql:/docker-entrypoint-initdb.d/init-db.sql
+    networks:
+      - pc-store-network
+    ports:
+      - "5432:5432"
+
+  pc-store-application:
+    image: pc-store-application:latest
+    container_name: pc-store-application
+    ports:
+      - "8081:8080"
+    networks:
+      - pc-store-network
+    depends_on:
+      - keycloak
+      - redis
+      - minio
+      - postgres
+
+  pc-store-client:
+    image: pc-store-client:latest
+    container_name: pc-store-client
+    ports:
+      - "80:80"
+
 networks:
   pc-store-network:
 
@@ -46,3 +110,4 @@ volumes:
   redis_data:
   minio_data:
   keycloak-data:
+  postgres_data:

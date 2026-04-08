@@ -1,5 +1,5 @@
 server:
-  port: 9999
+  port: ${SERVER_PORT:8080}
 
 spring:
   application:
@@ -7,7 +7,8 @@ spring:
 
   datasource:
     driver-class-name: org.postgresql.Driver
-    url: jdbc:postgresql://localhost:5432/pc_store
+#    url: jdbc:postgresql://localhost:5432/pc_store
+    url: jdbc:postgresql://112.78.3.244:5432/pc_store
     username: postgres
     password: 123456
 
@@ -22,6 +23,20 @@ spring:
           lob:
             non_contextual_creation: true
     open-in-view: false
+  data:
+    redis:
+      host: 112.78.3.244
+      port: 6379
+      database: 0
+      timeout: 5s
+      connect-timeout: 3s
+      password: ${REDIS_PASSWORD:AdminRedis@2025}
+  cache:
+    redis:
+      key-prefix: pc-store-service
+      cache-null-values: false
+      time-to-live: 300s
+      use-key-prefix: true
 
   mail:
     host: smtp.gmail.com
@@ -37,7 +52,8 @@ spring:
 
 keycloak:
   realm: master
-  auth-server-url: http://localhost:8080
+#  auth-server-url: http://localhost:8080
+  auth-server-url: http://112.78.3.244:8080
   resource: pc-store
   ssl-required: none
   principal-attribute: preferred_username
@@ -45,17 +61,22 @@ keycloak:
   bearer-only: true
   cors: true
   credentials:
-    secret: oXfAHc1jScNAkUOlohYJmChWNqzVQHvd
+#    secret: oXfAHc1jScNAkUOlohYJmChWNqzVQHvd
+    secret: FLtKZ4e6czNc8o1haV7NFikNu0v7ftv0
+##    secret: Z01NOECq4XxjHc0ybF1oSFIoUCkSEmno
+#    secret: d9PEzq59qNy1ps4h2KVyFPiU6br4YV2x
   public-client: true
 
 rest-template:
   timeout: 30
 
-redis:
-  port: 6379
-  host: 127.0.0.1
-  database: 0
-  timeout: 3600
+#redis:
+#  port: 6379
+#  host: 112.78.3.244
+#  database: 0
+#  timeout: 5s
+#  connect-timeout: 3s
+#  password: ${REDIS_PASSWORD:AdminRedis@2025}
 
 imgur:
   client-id: 29f585fc0df678c
@@ -63,14 +84,15 @@ imgur:
 
 vnpay:
   version: 2.1.0
-  callback-url: http://localhost:4200/vnpay/confirm-payment
+  callback-url: http://112.78.3.244/vnpay/confirm-payment
   tmn-code: 71PRZR3X
   hash-secret: 8N53T5OWTTTE2LA3JJQKFTFDKX2GWZ7W
   command: pay
   domain: https://sandbox.vnpayment.vn
 
 minio:
-  url: http://localhost:9000
+#  url: http://localhost:9000
+  url: http://112.78.3.244:9000
   access-key: minioadmin
   secret-key: minioadmin123
 

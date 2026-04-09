@@ -4,6 +4,8 @@ server:
 spring:
   application:
     name: pc-store-backend
+  jackson:
+    time-zone: Asia/Ho_Chi_Minh
 
   datasource:
     driver-class-name: org.postgresql.Driver
@@ -35,7 +37,7 @@ spring:
     redis:
       key-prefix: pc-store-service
       cache-null-values: false
-      time-to-live: 300s
+      time-to-live: 300
       use-key-prefix: true
 
   mail:

@@ -89,6 +89,8 @@ services:
     container_name: pc-store-application
     ports:
       - "8081:8080"
+    environment:
+      - TZ=Asia/Ho_Chi_Minh
     networks:
       - pc-store-network
     depends_on:

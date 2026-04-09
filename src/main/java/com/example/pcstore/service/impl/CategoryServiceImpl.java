@@ -16,7 +16,9 @@ import com.example.pcstore.utils.JWTUtils;
 import com.example.pcstore.utils.StringUtils;
 import lombok.RequiredArgsConstructor;
 import org.slf4j.Logger;
+import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 
@@ -43,6 +45,8 @@ public class CategoryServiceImpl implements CategoryService {
     }
 
     @Override
+    @Transactional
+    @CacheEvict(value = "categories", allEntries = true)
     public void create(CreateCategoryRequest request) {
         String username = JWTUtils.getUsername();
         if (StringUtils.isNullOrEmpty(request.getName())) {
@@ -58,6 +62,8 @@ public class CategoryServiceImpl implements CategoryService {
     }
 
     @Override
+    @Transactional
+    @CacheEvict(value = "categories", allEntries = true)
     public CategoryResponse update(String id, UpdateCategoryRequest request) {
         String username = JWTUtils.getUsername();
         LOGGER.info("[CATEGORY][UPDATE][{}] Starting... Request: {}", username, request);

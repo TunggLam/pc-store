@@ -48,7 +48,7 @@ public class Constant {
 
     public static final String PRODUCT_NOT_FOUND = "Không tìm thấy thông tin sản phẩm";
 
-    public static final String KEY_GENERATOR = "ecommerce-api-key";
+    public static final String KEY_GENERATOR = "pcStoreKeyGenerator";
 
     public static final String ORDER_NOT_FOUND = "Không tìm thấy thông tin đơn hàng";
 

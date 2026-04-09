@@ -2,9 +2,7 @@ package com.example.pcstore.repositories;
 
 import com.example.pcstore.constant.Constant;
 import com.example.pcstore.entity.Product;
-import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
-import org.springframework.cache.annotation.Caching;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
@@ -30,7 +28,6 @@ public interface ProductRepository extends JpaRepository<Product, String>, JpaSp
 
     @NonNull
     @Override
-    @Caching(evict = {@CacheEvict(value = "products", allEntries = true, beforeInvocation = true)})
     Product save(@NonNull Product product);
 
     @Query(value = "SELECT * FROM product WHERE quantity <= 5 AND quantity > 0 ORDER BY quantity ASC", nativeQuery = true)

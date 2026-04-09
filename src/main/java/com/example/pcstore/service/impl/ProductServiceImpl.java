@@ -21,10 +21,15 @@ import com.example.pcstore.utils.JWTUtils;
 import com.example.pcstore.utils.StringUtils;
 import io.minio.MinioClient;
 import io.minio.PutObjectArgs;
+import io.minio.RemoveObjectArgs;
 import lombok.RequiredArgsConstructor;
 import org.slf4j.Logger;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 import java.io.InputStream;
 import java.util.*;
@@ -97,6 +102,8 @@ public class ProductServiceImpl implements ProductService {
     }
 
     @Override
+    @Transactional
+    @CacheEvict(value = "products", allEntries = true)
     public ProductResponse createProduct(CreateProductRequest request) {
         String username = JWTUtils.getUsername();
 
@@ -124,7 +131,8 @@ public class ProductServiceImpl implements ProductService {
 
     private String uploadImgToMinio(CreateProductRequest request) {
         try (InputStream inputStream = request.getImage().getInputStream()) {
-            String objectName = String.format("%s/%s.png", request.getCategoryId(), request.getName());
+            String objectName = String.format("%s/%s_%s.png",
+                    request.getCategoryId(), UUID.randomUUID(), request.getName());
             minioClient.putObject(
                     PutObjectArgs.builder()
                             .bucket("product")
@@ -133,22 +141,71 @@ public class ProductServiceImpl implements ProductService {
                             .contentType(request.getImage().getContentType())
                             .build()
             );
-
-           return String.format("%s/product/%s", minioUrl, objectName);
+            return String.format("%s/product/%s", minioUrl, objectName);
         } catch (Exception e) {
-            LOGGER.error("[MINIO] Upload avatar thất bại: {}", e.getMessage());
+            LOGGER.error("[MINIO] Upload ảnh thất bại: {}", e.getMessage());
             throw new BusinessException("Upload ảnh thất bại");
         }
     }
 
+    private void deleteFromMinio(String objectName) {
+        try {
+            minioClient.removeObject(
+                    RemoveObjectArgs.builder()
+                            .bucket("product")
+                            .object(objectName)
+                            .build()
+            );
+            LOGGER.info("[MINIO] Đã xóa ảnh cũ: {}", objectName);
+        } catch (Exception e) {
+            LOGGER.error("[MINIO] Xóa ảnh cũ thất bại: {}", e.getMessage());
+        }
+    }
+
+    private String extractMinioObjectName(String imageUrl) {
+        String prefix = minioUrl + "/product/";
+        if (imageUrl != null && imageUrl.startsWith(prefix)) {
+            return imageUrl.substring(prefix.length());
+        }
+        return null;
+    }
+
     @Override
+    @Transactional
+    @CacheEvict(value = "products", allEntries = true)
     public ProductResponse updateProduct(String id, CreateProductRequest request) {
         String username = JWTUtils.getUsername();
 
         Product product = getProductById(id);
         LOGGER.info("[PRODUCT][UPDATE PRODUCT][{}] Thông tin sản phẩm: {}", username, product);
 
-        uploadImageIfFileExist(request, username, product);
+        if (request.getImage() != null && !request.getImage().isEmpty()) {
+            String oldImageUrl = product.getImageUrl();
+
+            /* Upload ảnh mới - nếu fail thì throw exception, DB không được update */
+            String newImageUrl = uploadImgToMinio(request);
+
+            ImgurUpload imgurUpload = new ImgurUpload();
+            imgurUpload.setStatus("UPLOADED");
+            imgurUpload.setSize(request.getImage().getSize());
+            imgurUpload.setImgurUrl(newImageUrl);
+            imgurUploadRepository.save(imgurUpload);
+
+            product.setImageUrl(newImageUrl);
+            LOGGER.info("[PRODUCT][UPDATE PRODUCT][{}] Ảnh mới: {}", username, newImageUrl);
+
+            /* Xóa ảnh cũ trên MinIO sau khi transaction commit thành công */
+            String oldObjectName = extractMinioObjectName(oldImageUrl);
+            if (oldObjectName != null) {
+                TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+                    @Override
+                    public void afterCommit() {
+                        deleteFromMinio(oldObjectName);
+                    }
+                });
+            }
+        }
+
         saveUpdateProduct(request, product);
         return productMapper.mapToProductResponse(product);
     }
@@ -159,21 +216,6 @@ public class ProductServiceImpl implements ProductService {
             throw new BusinessException(Constant.PRODUCT_NOT_FOUND);
         }
         return product;
-    }
-
-    private void uploadImageIfFileExist(CreateProductRequest request, String username, Product product) {
-        if (!request.getImage().isEmpty()) {
-            /* Uplaod ảnh lên Minio */
-            String imageUrl = uploadImgToMinio(request);
-
-            ImgurUpload imgurUpload = new ImgurUpload();
-            imgurUpload.setStatus("UPLOADED");
-            imgurUpload.setSize(request.getImage().getSize());
-            imgurUpload.setImgurUrl(imageUrl);
-            imgurUploadRepository.save(imgurUpload);
-
-            product.setImageUrl(imageUrl);
-        }
     }
 
     private void saveUpdateProduct(CreateProductRequest request, Product product) {
